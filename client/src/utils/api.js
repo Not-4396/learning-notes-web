@@ -1,11 +1,7 @@
 import axios from 'axios'
 
-const baseURL = import.meta.env.PROD
-  ? `${import.meta.env.VITE_API_BASE}/api`
-  : '/api'
-
 const api = axios.create({
-  baseURL,
+  baseURL: '/api',
   timeout: 30000
 })
 
@@ -65,11 +61,8 @@ export const importData = {
 // 发送消息（普通请求）
 export async function sendMessage(message) {
   const token = localStorage.getItem('token')
-  const url = import.meta.env.PROD
-    ? `${import.meta.env.VITE_API_BASE}/api/chat/send`
-    : '/api/chat/send'
 
-  const response = await fetch(url, {
+  const response = await fetch('/api/chat/send', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
