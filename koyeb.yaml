@@ -1,0 +1,17 @@
+services:
+  - name: learning-notes-server
+    type: web
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.js
+    env:
+      - name: NODE_ENV
+        value: production
+      - name: PORT
+        value: 8000
+      - name: MIMO_API_KEY
+        value: ""  # 在 Koyeb 平台设置
+      - name: JWT_SECRET
+        value: ""  # 在 Koyeb 平台设置
+    instance_type: nano
