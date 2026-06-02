@@ -19,9 +19,5 @@
     { "src": "/assets/(.*)", "dest": "/client/assets/$1" },
     { "src": "/(.*\\.(js|css|svg|png|jpg|ico))", "dest": "/client/$1" },
     { "src": "/(.*)", "dest": "/client/index.html" }
-  ],
-  "env": {
-    "MIMO_API_KEY": "@mimo-api-key",
-    "JWT_SECRET": "@jwt-secret"
-  }
+  ]
 }
