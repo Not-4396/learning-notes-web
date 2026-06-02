@@ -1,8 +1,8 @@
 services:
-  - name: learning-notes-server
+  - name: learning-notes-api
     type: web
     runtime: node
-    rootDir: server
+    rootDir: api
     buildCommand: npm install
     startCommand: node index.js
     env:

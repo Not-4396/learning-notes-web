@@ -575,4 +575,12 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   }
 });
 
+// 独立运行模式（用于 Koyeb 等平台）
+if (require.main === module) {
+  const PORT = process.env.PORT || 3003;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
 module.exports = app;
