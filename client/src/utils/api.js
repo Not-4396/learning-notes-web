@@ -58,6 +58,11 @@ export const importData = {
   conversations: (conversations) => api.post('/import', { conversations })
 }
 
+// 分数
+export const scores = {
+  getScores: () => api.get('/scores')
+}
+
 // 发送消息（普通请求）
 export async function sendMessage(message) {
   const token = localStorage.getItem('token')

@@ -28,6 +28,17 @@
       </el-button>
     </div>
 
+    <!-- 学习领域分布 -->
+    <div class="radar-section" v-if="user">
+      <div class="section-header">
+        <h3 class="section-title">学习领域分布</h3>
+        <p class="section-hint">通过对话学习积累分数</p>
+      </div>
+      <div class="radar-wrapper">
+        <RadarChart :scores="scores" :size="radarSize" :animated="true" />
+      </div>
+    </div>
+
     <!-- 笔记列表 -->
     <div class="note-list" v-loading="loading">
       <div
@@ -81,10 +92,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { report, summary } from '../utils/api'
+import { report, summary, scores as scoresApi } from '../utils/api'
+import RadarChart from '../components/RadarChart.vue'
 
 const router = useRouter()
 const user = ref(null)
@@ -93,6 +105,15 @@ const loading = ref(false)
 const showGenerateDialog = ref(false)
 const generateDate = ref(new Date().toISOString().slice(0, 10))
 const generating = ref(false)
+const scores = ref({})
+
+// 计算雷达图大小
+const radarSize = computed(() => {
+  if (typeof window !== 'undefined') {
+    return Math.min(window.innerWidth - 40, 320)
+  }
+  return 300
+})
 
 onMounted(() => {
   const userStr = localStorage.getItem('user')
@@ -100,6 +121,7 @@ onMounted(() => {
     user.value = JSON.parse(userStr)
   }
   loadNotes()
+  loadScores()
 })
 
 async function loadNotes() {
@@ -113,6 +135,17 @@ async function loadNotes() {
     console.error('load notes error:', err)
   } finally {
     loading.value = false
+  }
+}
+
+async function loadScores() {
+  try {
+    const res = await scoresApi.getScores()
+    if (res.ok) {
+      scores.value = res.scores
+    }
+  } catch (err) {
+    console.error('load scores error:', err)
   }
 }
 
@@ -313,6 +346,37 @@ function handleLogout() {
   color: #999;
 }
 
+.radar-section {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 0 20px;
+}
+
+.section-header {
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px;
+}
+
+.section-hint {
+  font-size: 13px;
+  color: #999;
+  margin: 0;
+}
+
+.radar-wrapper {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .header-content {
@@ -371,6 +435,15 @@ function handleLogout() {
 
   .stat-num {
     font-size: 20px;
+  }
+
+  .radar-section {
+    padding: 0 15px;
+    margin: 15px auto;
+  }
+
+  .radar-wrapper {
+    padding: 15px;
   }
 }
 </style>
