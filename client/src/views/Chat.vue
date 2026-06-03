@@ -366,4 +366,67 @@ function scrollToBottom() {
   background: #fff;
   border-top: 1px solid #eee;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .header-content {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .back-btn {
+    order: 1;
+  }
+
+  .title {
+    order: 2;
+    font-size: 16px;
+  }
+
+  .header-actions {
+    order: 3;
+    display: flex;
+    gap: 8px;
+  }
+
+  .welcome {
+    padding: 60px 20px;
+  }
+
+  .welcome-icon {
+    font-size: 48px;
+  }
+
+  .welcome h2 {
+    font-size: 18px;
+  }
+
+  .message-list {
+    padding: 15px;
+  }
+
+  .message {
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+  }
+
+  .content {
+    font-size: 14px;
+  }
+
+  .input-area {
+    padding: 12px 15px;
+  }
+}
 </style>

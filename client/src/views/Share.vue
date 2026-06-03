@@ -335,4 +335,33 @@ function treeToHtml(node, depth = 0) {
 .text-version h3 {
   margin: 0 0 16px;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .title {
+    font-size: 18px;
+  }
+
+  .content {
+    padding: 15px;
+  }
+
+  .stats {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 15px;
+  }
+
+  .mind-map-container {
+    padding: 10px;
+  }
+
+  .mind-map-svg {
+    height: 300px;
+  }
+
+  .text-version {
+    padding: 15px;
+  }
+}
 </style>

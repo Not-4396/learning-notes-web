@@ -282,4 +282,19 @@ async function handleImport() {
   font-size: 13px;
   color: #333;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .content {
+    padding: 15px;
+  }
+
+  .import-card, .format-card {
+    padding: 18px;
+  }
+
+  .upload-icon {
+    font-size: 36px;
+  }
+}
 </style>

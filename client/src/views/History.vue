@@ -243,4 +243,30 @@ function formatDate(dateStr) {
   color: #ccc;
   font-size: 13px;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .content {
+    padding: 15px;
+  }
+
+  .note-card {
+    padding: 14px 16px;
+  }
+
+  .note-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .note-stats {
+    font-size: 12px;
+  }
+
+  .note-arrow {
+    right: 16px;
+    font-size: 20px;
+  }
+}
 </style>

@@ -515,4 +515,53 @@ function treeToMarkdown(node, depth = 0) {
   margin: 0 0 16px;
   color: #333;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .header-content {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .back-btn {
+    order: 1;
+  }
+
+  .title {
+    order: 2;
+    font-size: 16px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .header-actions {
+    order: 3;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .content {
+    padding: 15px;
+  }
+
+  .stats {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 15px;
+  }
+
+  .mind-map-container {
+    padding: 10px;
+  }
+
+  .mind-map-svg {
+    height: 300px;
+  }
+
+  .text-version {
+    padding: 15px;
+  }
+}
 </style>

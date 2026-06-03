@@ -312,4 +312,65 @@ function handleLogout() {
   font-size: 12px;
   color: #999;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .header-content {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .user-info {
+    order: 1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .logo {
+    order: 2;
+    width: 100%;
+    text-align: center;
+    font-size: 18px;
+  }
+
+  .header-actions {
+    order: 3;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .action-btns {
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 15px;
+    margin: 15px auto;
+  }
+
+  .action-btns .el-button {
+    height: 48px;
+    font-size: 15px;
+  }
+
+  .note-list {
+    padding: 0 15px 15px;
+  }
+
+  .note-card {
+    padding: 15px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .note-right {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .stat-num {
+    font-size: 20px;
+  }
+}
 </style>
