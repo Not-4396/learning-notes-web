@@ -1,5 +1,6 @@
 // 注册 API
 import { generateToken, initDB } from '../_utils.js';
+import bcrypt from 'bcryptjs';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
