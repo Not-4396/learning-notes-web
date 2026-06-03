@@ -53,6 +53,8 @@ export async function onRequestPost(context) {
     const MIMO_API_KEY = env.MIMO_API_KEY;
     const MIMO_API_URL = 'https://token-plan-cn.xiaomimimo.com/v1/chat/completions';
 
+    console.log('Calling MIMO API with key:', MIMO_API_KEY ? 'exists' : 'missing');
+
     const apiResponse = await fetch(MIMO_API_URL, {
       method: 'POST',
       headers: {
@@ -67,14 +69,25 @@ export async function onRequestPost(context) {
       })
     });
 
-    const apiData = await apiResponse.json();
+    console.log('MIMO API response status:', apiResponse.status);
+    const responseText = await apiResponse.text();
+    console.log('MIMO API response text:', responseText.substring(0, 500));
+
+    let apiData;
+    try {
+      apiData = JSON.parse(responseText);
+    } catch (e) {
+      throw new Error('Invalid JSON response: ' + responseText.substring(0, 200));
+    }
+
     let reply = '';
 
     if (apiData.choices && apiData.choices[0]) {
       const msg = apiData.choices[0].message;
       reply = msg.content || msg.reasoning_content || '';
     } else {
-      throw new Error('Invalid API response');
+      console.error('Unexpected API response structure:', JSON.stringify(apiData).substring(0, 500));
+      throw new Error('Invalid API response: ' + (apiData.error?.message || JSON.stringify(apiData).substring(0, 200)));
     }
 
     // 更新数据库
