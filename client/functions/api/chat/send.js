@@ -111,16 +111,19 @@ export async function onRequestPost(context) {
 // 异步更新学习分数
 async function updateLearningScore(db, userId, userMessage, aiReply, mimoApiKey) {
   try {
-    // 使用 AI 判断对话属于哪个学习领域
-    const classifyPrompt = `判断以下对话属于哪个学习领域，只回复领域名称，不要回复其他内容。
+    const dateKey = new Date().toISOString().slice(0, 10);
 
-可选领域：财经、历史、政治、艺术、科技、自然
+    // 使用 AI 判断对话属于哪个学习领域，并评分深度
+    const classifyPrompt = `分析以下对话，返回JSON格式结果：
+1. category: 问题所属领域（财经/历史/政治/艺术/科技/自然）
+2. depth: 难度评分（1-10分，10分为最高难度）
 
 对话内容：
 用户：${userMessage}
 AI：${aiReply}
 
-领域：`;
+请只返回JSON，不要其他内容：
+{"category": "领域", "depth": 分数}`;
 
     const classifyResponse = await fetch('https://token-plan-cn.xiaomimimo.com/v1/chat/completions', {
       method: 'POST',
@@ -130,7 +133,7 @@ AI：${aiReply}
       },
       body: JSON.stringify({
         model: 'mimo-v2.5',
-        max_tokens: 20,
+        max_tokens: 50,
         temperature: 0.1,
         messages: [
           { role: 'user', content: classifyPrompt }
@@ -140,9 +143,21 @@ AI：${aiReply}
 
     const classifyData = await classifyResponse.json();
     let category = '';
+    let depth = 5;
 
     if (classifyData.choices && classifyData.choices[0]) {
-      category = classifyData.choices[0].message.content.trim();
+      const content = classifyData.choices[0].message.content.trim();
+      try {
+        const result = JSON.parse(content);
+        category = result.category;
+        depth = result.depth || 5;
+      } catch (e) {
+        // 尝试从文本中提取
+        const categoryMatch = content.match(/category['":\s]+(财经|历史|政治|艺术|科技|自然)/);
+        const depthMatch = content.match(/depth['":\s]+(\d+)/);
+        if (categoryMatch) category = categoryMatch[1];
+        if (depthMatch) depth = parseInt(depthMatch[1]);
+      }
     }
 
     // 验证分类结果
@@ -151,25 +166,183 @@ AI：${aiReply}
       return;
     }
 
-    // 更新分数
-    const existing = await db.prepare(
-      'SELECT id, score, question_count FROM user_scores WHERE user_id = ? AND category = ?'
-    ).bind(userId, category).first();
+    // 验证深度分数范围
+    depth = Math.max(1, Math.min(10, depth));
 
-    const scoreToAdd = 5; // 每次对话增加5分
+    // 检查每日同领域上限（每天同一领域最多计5题）
+    const dailyCount = await db.prepare(
+      'SELECT count FROM daily_category_count WHERE user_id = ? AND category = ? AND date_key = ?'
+    ).bind(userId, category, dateKey).first();
 
-    if (existing) {
-      await db.prepare(
-        'UPDATE user_scores SET score = score + ?, question_count = question_count + 1, updated_at = datetime(\'now\') WHERE id = ?'
-      ).bind(scoreToAdd, existing.id).run();
-    } else {
-      await db.prepare(
-        'INSERT INTO user_scores (user_id, category, score, question_count) VALUES (?, ?, ?, 1)'
-      ).bind(userId, category, scoreToAdd).run();
+    if (dailyCount && dailyCount.count >= 5) {
+      console.log('Daily limit reached for category:', category);
+      return;
     }
 
-    console.log('Updated score for category:', category);
+    // 更新每日计数
+    if (dailyCount) {
+      await db.prepare(
+        'UPDATE daily_category_count SET count = count + 1 WHERE user_id = ? AND category = ? AND date_key = ?'
+      ).bind(userId, category, dateKey).run();
+    } else {
+      await db.prepare(
+        'INSERT INTO daily_category_count (user_id, category, date_key, count) VALUES (?, ?, ?, 1)'
+      ).bind(userId, category, dateKey).run();
+    }
+
+    // 获取或创建用户分数记录
+    let scoreRecord = await db.prepare(
+      'SELECT * FROM user_scores WHERE user_id = ? AND category = ?'
+    ).bind(userId, category).first();
+
+    if (!scoreRecord) {
+      // 创建新记录
+      await db.prepare(
+        'INSERT INTO user_scores (user_id, category, score, question_count, recent_depths, streak_days, last_study_date, weekly_active_days) VALUES (?, ?, 0, 0, \'[]\', 0, null, \'[]\')'
+      ).bind(userId, category).run();
+
+      scoreRecord = await db.prepare(
+        'SELECT * FROM user_scores WHERE user_id = ? AND category = ?'
+      ).bind(userId, category).first();
+    }
+
+    // 解析现有数据
+    let recentDepths = [];
+    try {
+      recentDepths = JSON.parse(scoreRecord.recent_depths || '[]');
+    } catch (e) {
+      recentDepths = [];
+    }
+
+    let weeklyActiveDays = [];
+    try {
+      weeklyActiveDays = JSON.parse(scoreRecord.weekly_active_days || '[]');
+    } catch (e) {
+      weeklyActiveDays = [];
+    }
+
+    // 更新最近深度记录（保留最近10个）
+    recentDepths.push(depth);
+    if (recentDepths.length > 10) {
+      recentDepths = recentDepths.slice(-10);
+    }
+
+    // 更新连续学习天数
+    const today = dateKey;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    let streakDays = scoreRecord.streak_days || 0;
+
+    if (scoreRecord.last_study_date === yesterday) {
+      // 连续学习
+      streakDays += 1;
+    } else if (scoreRecord.last_study_date !== today) {
+      // 断了，重新开始
+      streakDays = 1;
+    }
+    // 如果 last_study_date === today，streakDays 不变
+
+    // 更新本周活跃天数
+    const dayOfWeek = new Date().getDay();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const todayName = dayNames[dayOfWeek];
+
+    if (!weeklyActiveDays.includes(todayName)) {
+      weeklyActiveDays.push(todayName);
+    }
+
+    // 检查是否需要重置本周活跃天数（如果上周的数据）
+    const lastStudyDate = scoreRecord.last_study_date;
+    if (lastStudyDate) {
+      const lastDate = new Date(lastStudyDate);
+      const currentDate = new Date();
+      const daysDiff = Math.floor((currentDate - lastDate) / 86400000);
+      if (daysDiff > 7) {
+        weeklyActiveDays = [todayName];
+      }
+    }
+
+    // 计算新分数
+    const questionCount = (scoreRecord.question_count || 0) + 1;
+    const newScore = calculateScore({
+      question_count: questionCount,
+      recent_depths: recentDepths,
+      streak_days: streakDays,
+      weekly_active_days: weeklyActiveDays
+    });
+
+    // 更新数据库
+    await db.prepare(
+      `UPDATE user_scores SET
+        score = ?,
+        question_count = ?,
+        recent_depths = ?,
+        streak_days = ?,
+        last_study_date = ?,
+        weekly_active_days = ?,
+        updated_at = datetime('now')
+      WHERE user_id = ? AND category = ?`
+    ).bind(
+      newScore,
+      questionCount,
+      JSON.stringify(recentDepths),
+      streakDays,
+      today,
+      JSON.stringify(weeklyActiveDays),
+      userId,
+      category
+    ).run();
+
+    console.log('Updated score for category:', category, 'new score:', newScore);
   } catch (err) {
     console.error('updateLearningScore error:', err);
   }
+}
+
+// 计算分数算法
+function calculateScore(record) {
+  const { question_count, recent_depths, streak_days, weekly_active_days } = record;
+
+  // 1. 数量分 (25%) - min(问题数 ×1.5, 100)
+  const countScore = Math.min(question_count * 1.5, 100);
+
+  // 2. 深度分 (30%) - 最近10题平均深度 ×10
+  const avgDepth = recent_depths.length > 0
+    ? recent_depths.reduce((a, b) => a + b, 0) / recent_depths.length
+    : 0;
+  const depthScore = avgDepth * 10;
+
+  // 3. 体系分 (25%) - 连续同领域题数 ×8 + 知识链长度 ×10
+  const streakScore = Math.min(streak_days * 8, 100);
+  const chainScore = calculateChainScore(recent_depths);
+  const systemScore = streakScore * 0.6 + chainScore * 0.4;
+
+  // 4. 持续分 (20%) - 连续学习天数 ×8 + 本周活跃天数 ×5
+  const continuousScore = streak_days * 8;
+  const weeklyScore = (weekly_active_days || []).length * 5;
+  const persistenceScore = Math.min(continuousScore + weeklyScore, 100);
+
+  // 综合计算
+  const total = countScore * 0.25 + depthScore * 0.30 + systemScore * 0.25 + persistenceScore * 0.20;
+
+  return Math.round(Math.min(total, 100));
+}
+
+// 计算知识链分数
+function calculateChainScore(depths) {
+  if (depths.length < 2) return 0;
+
+  let chainLength = 1;
+  let maxChain = 1;
+
+  for (let i = 1; i < depths.length; i++) {
+    // 如果连续问题的深度差异不超过3分，认为是连续的知识链
+    if (Math.abs(depths[i] - depths[i - 1]) <= 3) {
+      chainLength++;
+      maxChain = Math.max(maxChain, chainLength);
+    } else {
+      chainLength = 1;
+    }
+  }
+
+  return Math.min(maxChain * 10, 100);
 }
