@@ -48,16 +48,15 @@ export function requireAuth(request, env) {
 
 // 初始化数据库表
 export async function initDB(db) {
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       nickname TEXT,
       last_login DATETIME
-    );
-
-    CREATE TABLE IF NOT EXISTS conversations (
+    )`,
+    `CREATE TABLE IF NOT EXISTS conversations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       role TEXT NOT NULL,
@@ -68,9 +67,8 @@ export async function initDB(db) {
       replied INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS daily_summaries (
+    )`,
+    `CREATE TABLE IF NOT EXISTS daily_summaries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       date_key TEXT NOT NULL,
@@ -80,9 +78,8 @@ export async function initDB(db) {
       share_token TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS generate_tasks (
+    )`,
+    `CREATE TABLE IF NOT EXISTS generate_tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       date_key TEXT NOT NULL,
@@ -90,9 +87,8 @@ export async function initDB(db) {
       result TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS share_links (
+    )`,
+    `CREATE TABLE IF NOT EXISTS share_links (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       share_token TEXT UNIQUE NOT NULL,
       date_key TEXT NOT NULL,
@@ -101,6 +97,10 @@ export async function initDB(db) {
       view_count INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-  `);
+    )`
+  ];
+
+  for (const sql of statements) {
+    await db.prepare(sql).run();
+  }
 }
