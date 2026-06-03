@@ -60,7 +60,8 @@ export const importData = {
 
 // 分数
 export const scores = {
-  getScores: () => api.get('/scores')
+  getScores: () => api.get('/scores'),
+  update: (category, score = 5) => api.post('/scores/update', { category, score })
 }
 
 // 发送消息（普通请求）

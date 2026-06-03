@@ -1,6 +1,8 @@
 // 发送消息 API
 import { requireAuth, initDB } from '../_utils.js';
 
+const CATEGORIES = ['财经', '历史', '政治', '艺术', '科技', '自然'];
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -96,9 +98,78 @@ export async function onRequestPost(context) {
       "INSERT INTO conversations (user_id, role, content, date_key, source, replied) VALUES (?, 'assistant', ?, ?, 'chat', 1)"
     ).bind(userId, reply, dateKey).run();
 
+    // 异步更新学习分数（不阻塞响应）
+    context.waitUntil(updateLearningScore(db, userId, message, reply, env.MIMO_API_KEY));
+
     return Response.json({ ok: true, reply, msgId });
   } catch (err) {
     console.error('send message error:', err);
     return Response.json({ ok: false, error: '发送消息失败: ' + err.message });
+  }
+}
+
+// 异步更新学习分数
+async function updateLearningScore(db, userId, userMessage, aiReply, mimoApiKey) {
+  try {
+    // 使用 AI 判断对话属于哪个学习领域
+    const classifyPrompt = `判断以下对话属于哪个学习领域，只回复领域名称，不要回复其他内容。
+
+可选领域：财经、历史、政治、艺术、科技、自然
+
+对话内容：
+用户：${userMessage}
+AI：${aiReply}
+
+领域：`;
+
+    const classifyResponse = await fetch('https://token-plan-cn.xiaomimimo.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + mimoApiKey
+      },
+      body: JSON.stringify({
+        model: 'mimo-v2.5',
+        max_tokens: 20,
+        temperature: 0.1,
+        messages: [
+          { role: 'user', content: classifyPrompt }
+        ]
+      })
+    });
+
+    const classifyData = await classifyResponse.json();
+    let category = '';
+
+    if (classifyData.choices && classifyData.choices[0]) {
+      category = classifyData.choices[0].message.content.trim();
+    }
+
+    // 验证分类结果
+    if (!CATEGORIES.includes(category)) {
+      console.log('Invalid category:', category);
+      return;
+    }
+
+    // 更新分数
+    const existing = await db.prepare(
+      'SELECT id, score, question_count FROM user_scores WHERE user_id = ? AND category = ?'
+    ).bind(userId, category).first();
+
+    const scoreToAdd = 5; // 每次对话增加5分
+
+    if (existing) {
+      await db.prepare(
+        'UPDATE user_scores SET score = score + ?, question_count = question_count + 1, updated_at = datetime(\'now\') WHERE id = ?'
+      ).bind(scoreToAdd, existing.id).run();
+    } else {
+      await db.prepare(
+        'INSERT INTO user_scores (user_id, category, score, question_count) VALUES (?, ?, ?, 1)'
+      ).bind(userId, category, scoreToAdd).run();
+    }
+
+    console.log('Updated score for category:', category);
+  } catch (err) {
+    console.error('updateLearningScore error:', err);
   }
 }

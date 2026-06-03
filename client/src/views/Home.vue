@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { report, summary, scores as scoresApi } from '../utils/api'
@@ -121,6 +121,11 @@ onMounted(() => {
     user.value = JSON.parse(userStr)
   }
   loadNotes()
+  loadScores()
+})
+
+// 使用 keep-alive 时，每次激活组件都刷新数据
+onActivated(() => {
   loadScores()
 })
 
